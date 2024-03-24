@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.IO;
+using System.Threading.Tasks;
 #endregion
 
 namespace Server.Misc
@@ -61,7 +62,11 @@ namespace Server.Misc
         {
             _PollTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromMilliseconds(100), ProcessCommand);
 
-            _Listen.BeginInvoke(r => ProcessInput(_Listen.EndInvoke(r)), null);
+			Task.Run(() =>
+			{
+				string r = _Listen();
+				ProcessInput(r);
+			});
         }
 
         private static void ProcessInput(string input)
@@ -88,8 +93,12 @@ namespace Server.Misc
 
             Interlocked.Exchange(ref _Command, string.Empty);
 
-            _Listen.BeginInvoke(r => ProcessInput(_Listen.EndInvoke(r)), null);
-        }
+			Task.Run(() =>
+			{
+				string r = _Listen();
+				ProcessInput(r);
+			});
+		}
 
         private static PageEntry[] _Pages;
 

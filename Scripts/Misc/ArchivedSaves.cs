@@ -5,6 +5,9 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
+using System.Threading.Tasks;
+using Server.Items;
+using Server.Multis;
 
 namespace Server.Misc
 {
@@ -217,20 +220,19 @@ namespace Server.Misc
 
             _Sync.Reset();
 
-            IAsyncResult t = _Pack.BeginInvoke(source, EndPack, source);
+			Task t = new Task(() => _Pack(source))
+				.ContinueWith(task =>
+				{
+					lock (_TaskRoot)
+						_Tasks.Remove(task);
 
-            lock (_TaskRoot)
-                _Tasks.Add(t);
-        }
+					_Sync.Set();
+				});
 
-        private static void EndPack(IAsyncResult r)
-        {
-            _Pack.EndInvoke(r);
+			lock (_TaskRoot)
+				_Tasks.Add(t);
 
-            lock (_TaskRoot)
-                _Tasks.Remove(r);
-
-            _Sync.Set();
+			t.Start();
         }
 
         private static void InternalPrune(DateTime threshold)
@@ -278,22 +280,21 @@ namespace Server.Misc
                 return;
             }
 
-            _Sync.Reset();
+			_Sync.Reset();
 
-            IAsyncResult t = _Prune.BeginInvoke(threshold, EndPrune, threshold);
+			Task t = new Task(() => _Prune(threshold))
+				.ContinueWith(task =>
+				{
+					lock (_TaskRoot)
+						_Tasks.Remove(task);
 
-            lock (_TaskRoot)
-                _Tasks.Add(t);
-        }
+					_Sync.Set();
+				});
 
-        private static void EndPrune(IAsyncResult r)
-        {
-            _Prune.EndInvoke(r);
+			lock (_TaskRoot)
+				_Tasks.Add(t);
 
-            lock (_TaskRoot)
-                _Tasks.Remove(r);
-
-            _Sync.Set();
+			t.Start();
         }
     }
 }
